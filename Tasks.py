@@ -5,7 +5,7 @@ N=10
 R = 10
 K = 25
 dt = 0.005
-T = 5
+T = 20
 
 def create_init_pos(N,R, min_distance = 0.5):
     r_arr = np.zeros((N, 2))
@@ -72,7 +72,7 @@ def force_working_on_particles(N, R, K, r_arr):
 
 import numpy as np
 
-def calc_tot_energy(pos, vel, t_arr):
+def calc_tot_energy(pos, vel, t_arr, N=10, R=10):
     E = np.zeros_like(t_arr, dtype=float)
 
     Tsteps = len(t_arr)
@@ -104,12 +104,27 @@ def calc_tot_energy(pos, vel, t_arr):
     return E
 
 def test_code_const_energy():
-    r_init, v_init = create_init_pos(N, R)
-    pos_arr, vel_arr, t_arr = motion_of_particles(N, R, K, dt, r_init, v_init, T)
-    E = calc_tot_energy(pos_arr, vel_arr, t_arr)
+    N1, R1, dt1 = 10, 10, 0.005
+    r_init1, v_init1 = create_init_pos(N1, R1)
+    pos_arr1, vel_arr1, t_arr1 = motion_of_particles(N1, R1, K, dt1, r_init1, v_init1, T)
+    E1 = calc_tot_energy(pos_arr1, vel_arr1, t_arr1, N1, R1)
 
-    plt.plot(t_arr, E, color='cornflowerblue')
-    plt.xlabel('t')
-    plt.ylabel('E')
-    plt.grid(alpha=0.2)
+    N2, R2, dt2 = 50, 50, 0.005
+    r_init2, v_init2 = create_init_pos(N2, R2)
+    pos_arr2, vel_arr2, t_arr2 = motion_of_particles(N2, R2, K, dt2, r_init2, v_init2, T)
+    E2 = calc_tot_energy(pos_arr2, vel_arr2, t_arr2, N2, R2)
+
+    N3, R3, dt3 = 50, 50, 0.001
+    r_init3, v_init3 = create_init_pos(N3, R3)
+    pos_arr3, vel_arr3, t_arr3 = motion_of_particles(N3, R3, K, dt3, r_init3, v_init3, T)
+    E3 = calc_tot_energy(pos_arr3, vel_arr3, t_arr3, N3, R3)
+
+    plt.plot(t_arr1, E1, label=f'N={N1}, R={R1}, dt={dt1}')
+    plt.plot(t_arr2, E2, label=f'N={N2}, R={R2}, dt={dt2}')
+    plt.plot(t_arr3, E3, label=f'N={N3}, R={R3}, dt={dt3}')
+    plt.xlabel('t'); plt.ylabel('E'); plt.grid(alpha=0.2)
+    plt.title('Energy over time')
+    plt.legend()
     plt.show()
+
+test_code_const_energy()
