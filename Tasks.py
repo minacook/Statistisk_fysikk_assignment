@@ -103,11 +103,13 @@ def calc_tot_energy(pos, vel, t_arr):
 
     return E
 
+def test_code_const_energy():
+    r_init, v_init = create_init_pos(N, R)
+    pos_arr, vel_arr, t_arr = motion_of_particles(N, R, K, dt, r_init, v_init, T)
+    E = calc_tot_energy(pos_arr, vel_arr, t_arr)
 
-r_init, v_init = create_init_pos(N,R)
-pos_arr, vel_arr, t_arr = motion_of_particles(N, R, K, dt, r_init, v_init, T)
-
-E = calc_tot_energy(pos_arr, vel_arr, t_arr)
-
-plt.plot(t_arr, E)
-plt.show()
+    plt.plot(t_arr, E, color='cornflowerblue')
+    plt.xlabel('t')
+    plt.ylabel('E')
+    plt.grid(alpha=0.2)
+    plt.show()
