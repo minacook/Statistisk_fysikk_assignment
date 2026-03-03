@@ -11,8 +11,13 @@ def create_init_pos(task, min_distance = 1):
     elif task == 'task3':
         v_arr = np.random.normal(0, 5.0, size=(N, 2))
         v_arr -= v_arr.mean(axis=0)  # removing COM drift so that <v> = 0
+    elif task == 'task4': # Creates v_arr with more dimensions in order to use for task 4
+        v_arr = np.zeros((6,N, 2))
+        for i in range(6):
+            v_arr[i, :, 0] = i
+
     else:
-        print('Task not recognized, must be task2 or task3')
+        print('Task not recognized, must be task2, task3 or task4')
         v_arr = None
 
     for i in range(1,N):
@@ -214,7 +219,7 @@ def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
 
 #test_maxwell_distribution(30, 60, 0.005,25, 30)
 
-def test_gas_pressure(N_val, R_val, dt_val, K_val, T_val):
+def test_gas_pressure_a(N_val, R_val, dt_val, K_val, T_val):
     global N, R, K, dt, T
     N, R, dt, K, T = N_val, R_val, dt_val, K_val, T_val
 
@@ -242,17 +247,19 @@ def test_gas_pressure(N_val, R_val, dt_val, K_val, T_val):
     print("Relativ forskjell:", abs(lhs - rhs)/rhs)
 
     # Plot pressure fluctuations + mean
-    plt.figure()
-    plt.plot(t_arr, P_arr, label="P(t)")
+    fig, ax = plt.subplots()
 
+    ax.plot(t_arr, P_arr, label="P(t)", color='mediumseagreen')
+    ax.axhline(P_mean, label="⟨P⟩", color='cornflowerblue')
+    ax.axhline(rhs/A, linestyle="--", color='tomato', label=r"\frac{N$k_b$T}{A}")
     info_text = (
-        rf"$\langle P \rangle$ = {P_mean:.5f}\n"
-        rf"$\langle P \rangle A$ = {lhs:.3f}\n"
-        rf"$N k_B T$ = {rhs:.3f}\n"
+        rf"$\langle P \rangle$ = {P_mean:.5f}" "\n"
+        rf"$\langle P \rangle A$ = {lhs:.3f}" "\n"
+        rf"$N k_B T$ = {rhs:.3f}" "\n"
         rf"Relative difference = {abs(lhs - rhs) / rhs:.2%}"
     )
 
-    plt.text(
+    ax.text(
         0.02, 0.95,
         info_text,
         transform=ax.transAxes,
@@ -261,14 +268,56 @@ def test_gas_pressure(N_val, R_val, dt_val, K_val, T_val):
         bbox=dict(boxstyle="round", facecolor="white", alpha=0.85)
     )
 
-    plt.axhline(P_mean, linestyle="--", label="⟨P⟩")
-    plt.xlabel("t")
-    plt.ylabel("Pressure")
-    plt.title(rf"Pressure vs time (N={N}, R={R}, dt={dt}, K={K}, T={T})")
-    plt.grid(alpha=0.3)
-    plt.legend()
+    ax.set_xlabel("t")
+    ax.set_ylabel("Pressure")
+    ax.set_title(rf"Pressure vs time (N={N}, R={R}, dt={dt}, K={K}, T={T})")
+    ax.grid(alpha=0.3)
+    ax.legend()
+
     plt.show()
 
+def test_gas_pressure_b(N_val, R_val, dt_val, K_val, T_val):
+    global N, R, K, dt, T
+    N, R, dt, K, T = N_val, R_val, dt_val, K_val, T_val
 
+    ratio = np.zeros(6)
 
-test_gas_pressure(40, 60, 0.005,25, 30)
+    r_init, v_init = create_init_pos('task3')
+    for i in range(6):
+        v_init *= 0.5
+        pos, vel, t_arr = motion_of_particles(r_init, v_init[i,:,:])
+
+        burn = int(0.4 * len(t_arr))
+        stride = 5
+
+        # Pressure time series and mean pressure
+        P_arr = gas_pressure_from_pos(pos)           # shape (time,)
+        P_mean = np.mean(P_arr[burn::stride])
+
+        # Temperature estimate (use same stride as pressure, for consistency)
+        vx_arr = vel[burn::stride, :, 0].ravel()
+        kBT = np.mean(vx_arr**2)                     # m=1, kB=1 units
+
+        A = np.pi * R**2
+        lhs = P_mean * A
+        rhs = N * kBT
+
+        ratio[i] = abs(lhs/rhs)
+
+    fig, ax = plt.subplots()
+    x_arr = np.arange(1,7)
+
+    ax.bar(x_arr, ratio, 0.35, label=r'$\frac{\langle P\rangle A} {N k_B T}$')
+
+    ax.set_xticks(x_arr)
+    ax.set_xticklabels([f"{x}" for x in x_arr])
+
+    ax.set_ylabel("Value")
+    ax.set_xlabel("$v_{x,init}$")
+    ax.set_title("Breakdown of ideal gas law at low energy")
+    ax.legend()
+    ax.grid(axis='y', alpha=0.3)
+
+    plt.show()
+
+test_gas_pressure_b(40, 60, 0.005,25, 10)
