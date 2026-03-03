@@ -1,23 +1,27 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def create_init_pos(task, min_distance = 1):
+def create_init_pos(task, min_distance = 1.1):
+    """
+    Creates initial positions and velocities for particles within a
+    2D circle, where we have v_x = 5 and v_y = 0 for all particles for
+    task 2 and random initial velocity for all particles for task 3 and 4.
+    The initial positions are distributed so that the min distance between
+    particles are 1.1
+
+    """
     r_arr = np.zeros((N, 2))
     r_arr[0, :] = np.array([R - R / 2, 0])
 
-    if task == 'task2':
+    if task == 'task2': # Creates initial velocities where v_x = 5 and v_y = 0 for all particles
         v_arr = np.zeros((N, 2))
         v_arr[:, 1] = 5
-    elif task == 'task3':
+    elif task == 'task3and4': # Creates random initial velocity for all particles
         v_arr = np.random.normal(0, 5.0, size=(N, 2))
         v_arr -= v_arr.mean(axis=0)  # removing COM drift so that <v> = 0
-    elif task == 'task4': # Creates v_arr with more dimensions in order to use for task 4
-        v_arr = np.zeros((6,N, 2))
-        for i in range(6):
-            v_arr[i, :, 0] = i
 
     else:
-        print('Task not recognized, must be task2, task3 or task4')
+        print('Task not recognized, must be task2, task3and4')
         v_arr = None
 
     for i in range(1,N):
@@ -40,6 +44,10 @@ def create_init_pos(task, min_distance = 1):
     return r_arr, v_arr
 
 def force_working_on_particles(r_arr):
+    """
+    Calculates the force working on the particles using the position array with dim(N,2)
+
+    """
     f = np.zeros((N,2))
     for i in range(N):
         r_i_vec = r_arr[i]
@@ -62,6 +70,10 @@ def force_working_on_particles(r_arr):
     return f
 
 def motion_of_particles(r_arr, v_arr):
+    """
+    Calculates the motion of the particles using initial arrays for the position and velocities
+    """
+
     n_steps = int(T/dt)
     pos = np.zeros((n_steps+1, N, 2), dtype=float)
     vel = np.zeros((n_steps+1, N, 2), dtype=float)
@@ -79,6 +91,9 @@ def motion_of_particles(r_arr, v_arr):
     return pos, vel, t_arr
 
 def calc_energy(pos, vel, t_arr):
+    """
+    Calculates the energy of the system using position and velocities over time
+    """
     E = np.zeros_like(t_arr, dtype=float)
     Kt = np.zeros_like(t_arr, dtype=float)
     Vwall = np.zeros_like(t_arr, dtype=float)
@@ -111,18 +126,20 @@ def calc_energy(pos, vel, t_arr):
 
 def gas_pressure_from_pos(pos):
     """
-        Returns P(t) array with shape (n_steps+1,).
-        Pressure in 2D = total wall force / circumference (2πR).
-        Uses only wall contribution.
-        """
-    r = np.linalg.norm(pos, axis=2)  # shape (time, N)
-    overlap = np.clip(r - R, 0.0, None)  # (time, N), only outside
-    Fwall_tot = K * np.sum(overlap, axis=1)  # shape (time,)
-    P = Fwall_tot / (2 * np.pi * R)  # shape (time,)
+    Calculates the pressure in 2D: total wall force / circumference (2 pi R). Returns array with pressure over time
+    """
+    r = np.linalg.norm(pos, axis=2)  # Getting the absolute pos giving us arr with shape (time, N)
+    overlap = np.clip(r - R, 0.0, None)  # Extracting particles that are on the outside (Pushing on the wall)
+    Fwall_tot = K * np.sum(overlap, axis=1)
+    P = Fwall_tot / (2 * np.pi * R)
     return P
 
 def test_code_const_energy(N_val, R_val, dt_val, K_val, T_val): # Task 2
-    global N, R, K, dt, T
+    """
+    Testing that the numerical method is working by checking the total energy over time and plotting it
+
+    """
+    global N, R, K, dt, T # Makes variables global so that only the test functions will need to take in the parameters
 
     N = N_val
     R = R_val
@@ -139,13 +156,15 @@ def test_code_const_energy(N_val, R_val, dt_val, K_val, T_val): # Task 2
     plt.title('Energy over time')
     plt.legend()
     plt.show()
-N1, R1, dt1 = 10, 10, 0.005
-
-
-N2, R2, dt2 = 40, 50, 0.005
 
 def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
-    global N, R, K, dt, T
+
+    """
+    Verifying the Maxwell distribution for ideal gas and plotting
+    the theory vs. collected statistics in a histogram
+
+    """
+    global N, R, K, dt, T # Makes variables global so that only the test functions will need to take in the parameters
 
     N = N_val
     R = R_val
@@ -153,18 +172,18 @@ def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
     dt = dt_val
     T = T_val
 
-    r_init, v_init = create_init_pos('task3')
+    r_init, v_init = create_init_pos('task3and4')
     pos, vel, t_arr = motion_of_particles(r_init, v_init)
 
-    burn = int(0.4 * len(t_arr)) # Using this constant to ignoring the approximate warmup time
+    burn = int(0.4 * len(t_arr)) # Using this constant to ignoring the warmup time (approx 40%)
     vx_arr = vel[burn::5, :, 0].ravel() # Getting the vx values, using a stride to avoid correlation and using ravel to get a 1D array for the histogram
 
     x = np.linspace(vx_arr.min(), vx_arr.max(), 400)
 
-    kBT_from_vx = np.mean(vx_arr ** 2)  # m=1
+    kBT_from_vx = np.mean(vx_arr ** 2)
 
     E, Kt, Vwall, Vlj = calc_energy(pos, vel, t_arr)
-    kBT_from_K = np.mean(Kt[burn:]) / N  # 2D: <K> = N kBT
+    kBT_from_K = np.mean(Kt[burn:]) / N
 
     rel_diff = abs(kBT_from_vx - kBT_from_K) / kBT_from_K
 
@@ -197,7 +216,7 @@ def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
     )
 
     ax[0].text(
-        0.02, 0.78, info_text,  # litt lavere enn før
+        0.02, 0.78, info_text,
         transform=ax[0].transAxes,
         fontsize=9,
         va="top",
@@ -220,10 +239,14 @@ def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
 #test_maxwell_distribution(30, 60, 0.005,25, 30)
 
 def test_gas_pressure_a(N_val, R_val, dt_val, K_val, T_val):
+    """
+    Testing that the gas pressure fulfills ideal gas law
+    and plotting the results
+    """
     global N, R, K, dt, T
     N, R, dt, K, T = N_val, R_val, dt_val, K_val, T_val
 
-    r_init, v_init = create_init_pos('task3')
+    r_init, v_init = create_init_pos('task3and4')
     pos, vel, t_arr = motion_of_particles(r_init, v_init)
 
     burn = int(0.4 * len(t_arr))
@@ -276,16 +299,21 @@ def test_gas_pressure_a(N_val, R_val, dt_val, K_val, T_val):
 
     plt.show()
 
-def test_gas_pressure_b(N_val, R_val, dt_val, K_val, T_val):
+def test_gas_pressure_b(N_val, R_val, dt_val, K_val, T_val, n_s):
+    """
+    Testing how low kinetic initial energy affects the verification of ideal gas law
+    and plotting the results in a bar chart
+    """
     global N, R, K, dt, T
     N, R, dt, K, T = N_val, R_val, dt_val, K_val, T_val
 
-    ratio = np.zeros(6)
-
-    r_init, v_init = create_init_pos('task3')
-    for i in range(6):
-        v_init *= 0.5
-        pos, vel, t_arr = motion_of_particles(r_init, v_init[i,:,:])
+    ratio = np.zeros(n_s)
+    scale = np.linspace(0.5, 0.05, n_s)
+    r_init, v_init = create_init_pos('task3and4')
+    for i in range(n_s):
+        if scale[i] < 0.4:
+            T = 60
+        pos, vel, t_arr = motion_of_particles(r_init, v_init * (scale[i])**2)
 
         burn = int(0.4 * len(t_arr))
         stride = 5
@@ -302,22 +330,19 @@ def test_gas_pressure_b(N_val, R_val, dt_val, K_val, T_val):
         lhs = P_mean * A
         rhs = N * kBT
 
-        ratio[i] = abs(lhs/rhs)
+        ratio[i] = lhs/rhs
 
     fig, ax = plt.subplots()
-    x_arr = np.arange(1,7)
 
-    ax.bar(x_arr, ratio, 0.35, label=r'$\frac{\langle P\rangle A} {N k_B T}$')
+    ax.bar(scale, ratio, width=0.1, label=r'$\frac{\langle P\rangle A} {N k_B T}$', color='mediumseagreen')
+    ax.axhline(1.0, linestyle="--", color="seagreen", linewidth=2)
 
-    ax.set_xticks(x_arr)
-    ax.set_xticklabels([f"{x}" for x in x_arr])
-
-    ax.set_ylabel("Value")
-    ax.set_xlabel("$v_{x,init}$")
-    ax.set_title("Breakdown of ideal gas law at low energy")
+    ax.set_ylabel("Ratio")
+    ax.set_xlabel("Velocity scale factor $s^2$")
+    ax.set_title(f"Breakdown of ideal gas law at different initial energies for (N={N}, R={R}, dt={dt}, K={K}, T={T})")
     ax.legend()
     ax.grid(axis='y', alpha=0.3)
 
     plt.show()
 
-test_gas_pressure_b(40, 60, 0.005,25, 10)
+test_gas_pressure_b(40, 15, 0.005,25, 30, 10)
