@@ -34,23 +34,6 @@ def create_init_pos(task, min_distance = 1):
 
     return r_arr, v_arr
 
-def motion_of_particles(r_arr, v_arr):
-    n_steps = int(T/dt)
-    pos = np.zeros((n_steps+1, N, 2), dtype=float)
-    vel = np.zeros((n_steps+1, N, 2), dtype=float)
-    pos[0] = r_arr
-    vel[0] = v_arr
-    t_arr = np.linspace(0, T, n_steps+1)
-
-    for t in range(1,n_steps+1):
-        f = force_working_on_particles(pos[t-1])
-        pos[t] = pos[t-1] + vel[t-1]*dt + (1/2) * f * dt**2
-
-        f_p1 = force_working_on_particles(pos[t])
-        vel[t] = vel[t-1] + dt*(f + f_p1)/2
-    return pos, vel, t_arr
-
-
 def force_working_on_particles(r_arr):
     f = np.zeros((N,2))
     for i in range(N):
@@ -73,33 +56,22 @@ def force_working_on_particles(r_arr):
 
     return f
 
-'''def calc_tot_energy(pos, vel, t_arr):
-    E = np.zeros_like(t_arr, dtype=float)
+def motion_of_particles(r_arr, v_arr):
+    n_steps = int(T/dt)
+    pos = np.zeros((n_steps+1, N, 2), dtype=float)
+    vel = np.zeros((n_steps+1, N, 2), dtype=float)
+    pos[0] = r_arr
+    vel[0] = v_arr
+    t_arr = np.linspace(0, T, n_steps+1)
 
-    Tsteps = len(t_arr)
-    N = pos.shape[1]
+    for t in range(1,n_steps+1):
+        f = force_working_on_particles(pos[t-1])
+        pos[t] = pos[t-1] + vel[t-1]*dt + (1/2) * f * dt**2
 
-    for t in range(Tsteps):
-        K_t = 0.5 * np.sum(vel[t, :, 0]**2 + vel[t, :, 1]**2)
+        f_p1 = force_working_on_particles(pos[t])
+        vel[t] = vel[t-1] + dt*(f + f_p1)/2
 
-        r = np.linalg.norm(pos[t], axis=1)
-        outside = r > R
-        V_wall = 0.5 * K * np.sum((r[outside] - R)**2)
-
-        V_lj = 0.0
-        for i in range(N):
-            for j in range(i+1, N):
-                rij_vec = pos[t, i] - pos[t, j]
-                rij = np.linalg.norm(rij_vec)
-                if rij < 1e-12:
-                    continue
-                inv_r6 = (1.0 / rij)**6
-                inv_r12 = inv_r6**2
-                V_lj += 4.0 * (inv_r12 - inv_r6)
-
-        E[t] = K_t + V_wall + V_lj
-
-    return E'''
+    return pos, vel, t_arr
 
 def calc_energy(pos, vel, t_arr):
     E = np.zeros_like(t_arr, dtype=float)
@@ -132,7 +104,19 @@ def calc_energy(pos, vel, t_arr):
 
     return E, Kt, Vwall, Vlj
 
-def test_code_const_energy(N_val, R_val, dt_val, K_val, T_val):
+def gas_pressure_from_pos(pos):
+    """
+        Returns P(t) array with shape (n_steps+1,).
+        Pressure in 2D = total wall force / circumference (2πR).
+        Uses only wall contribution.
+        """
+    r = np.linalg.norm(pos, axis=2)  # shape (time, N)
+    overlap = np.clip(r - R, 0.0, None)  # (time, N), only outside
+    Fwall_tot = K * np.sum(overlap, axis=1)  # shape (time,)
+    P = Fwall_tot / (2 * np.pi * R)  # shape (time,)
+    return P
+
+def test_code_const_energy(N_val, R_val, dt_val, K_val, T_val): # Task 2
     global N, R, K, dt, T
 
     N = N_val
@@ -150,12 +134,12 @@ def test_code_const_energy(N_val, R_val, dt_val, K_val, T_val):
     plt.title('Energy over time')
     plt.legend()
     plt.show()
-
 N1, R1, dt1 = 10, 10, 0.005
+
+
 N2, R2, dt2 = 40, 50, 0.005
 
-
-def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val):
+def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
     global N, R, K, dt, T
 
     N = N_val
@@ -227,4 +211,64 @@ def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val):
     plt.tight_layout()
     plt.show()
 
-test_maxwell_distribution(40,80,0.001,25,40)
+
+#test_maxwell_distribution(30, 60, 0.005,25, 30)
+
+def test_gas_pressure(N_val, R_val, dt_val, K_val, T_val):
+    global N, R, K, dt, T
+    N, R, dt, K, T = N_val, R_val, dt_val, K_val, T_val
+
+    r_init, v_init = create_init_pos('task3')
+    pos, vel, t_arr = motion_of_particles(r_init, v_init)
+
+    burn = int(0.4 * len(t_arr))
+    stride = 5
+
+    # Pressure time series and mean pressure
+    P_arr = gas_pressure_from_pos(pos)           # shape (time,)
+    P_mean = np.mean(P_arr[burn::stride])
+
+    # Temperature estimate (use same stride as pressure, for consistency)
+    vx_arr = vel[burn::stride, :, 0].ravel()
+    kBT = np.mean(vx_arr**2)                     # m=1, kB=1 units
+
+    A = np.pi * R**2
+    lhs = P_mean * A
+    rhs = N * kBT
+
+    print("⟨P⟩ =", P_mean)
+    print("⟨P⟩A =", lhs)
+    print("N kBT =", rhs)
+    print("Relativ forskjell:", abs(lhs - rhs)/rhs)
+
+    # Plot pressure fluctuations + mean
+    plt.figure()
+    plt.plot(t_arr, P_arr, label="P(t)")
+
+    info_text = (
+        rf"$\langle P \rangle$ = {P_mean:.5f}\n"
+        rf"$\langle P \rangle A$ = {lhs:.3f}\n"
+        rf"$N k_B T$ = {rhs:.3f}\n"
+        rf"Relative difference = {abs(lhs - rhs) / rhs:.2%}"
+    )
+
+    plt.text(
+        0.02, 0.95,
+        info_text,
+        transform=ax.transAxes,
+        va="top",
+        fontsize=9,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.85)
+    )
+
+    plt.axhline(P_mean, linestyle="--", label="⟨P⟩")
+    plt.xlabel("t")
+    plt.ylabel("Pressure")
+    plt.title(rf"Pressure vs time (N={N}, R={R}, dt={dt}, K={K}, T={T})")
+    plt.grid(alpha=0.3)
+    plt.legend()
+    plt.show()
+
+
+
+test_gas_pressure(40, 60, 0.005,25, 30)
