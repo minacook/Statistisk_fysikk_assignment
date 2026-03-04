@@ -236,7 +236,7 @@ def test_maxwell_distribution(N_val, R_val, dt_val, K_val, T_val): # Task 3
     plt.show()
 
 
-#test_maxwell_distribution(30, 60, 0.005,25, 30)
+test_maxwell_distribution(30, 60, 0.005,25, 30)
 
 def test_gas_pressure_a(N_val, R_val, dt_val, K_val, T_val):
     """
@@ -318,13 +318,11 @@ def test_gas_pressure_b(N_val, R_val, dt_val, K_val, T_val, n_s):
         burn = int(0.4 * len(t_arr))
         stride = 5
 
-        # Pressure time series and mean pressure
-        P_arr = gas_pressure_from_pos(pos)           # shape (time,)
+        P_arr = gas_pressure_from_pos(pos)
         P_mean = np.mean(P_arr[burn::stride])
 
-        # Temperature estimate (use same stride as pressure, for consistency)
         vx_arr = vel[burn::stride, :, 0].ravel()
-        kBT = np.mean(vx_arr**2)                     # m=1, kB=1 units
+        kBT = np.mean(vx_arr**2)
 
         A = np.pi * R**2
         lhs = P_mean * A
@@ -344,5 +342,3 @@ def test_gas_pressure_b(N_val, R_val, dt_val, K_val, T_val, n_s):
     ax.grid(axis='y', alpha=0.3)
 
     plt.show()
-
-test_gas_pressure_b(40, 15, 0.005,25, 30, 10)
